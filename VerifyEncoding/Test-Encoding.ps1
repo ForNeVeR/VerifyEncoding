@@ -38,6 +38,7 @@ function Test-Encoding
     if (!$SourceRoot)
     {
         $SourceRoot = git rev-parse --show-toplevel
+
         if (!$?)
         {
             throw "Cannot call `"git rev-parse`": exit code $LASTEXITCODE."
@@ -50,20 +51,35 @@ function Test-Encoding
     try
     {
         Push-Location $SourceRoot
+
         [array]$allFiles = git -c core.quotepath=off ls-tree -r HEAD --name-only
+
         if (!$?)
         {
             throw "Cannot call `"git ls-tree`": exit code $LASTEXITCODE."
         }
-        Write-Output "Total files in the repository: $( $allFiles.Length )"
+
+        # filter deleted files
+        $allFiles = $allFiles | Where-Object { (Test-Path -LiteralPath $_) -eq $True }
+
+        # filter folders from GIT submodules
+        $allFiles = $allFiles | Where-Object { (Get-Item -Force -LiteralPath $_).PSIsContainer -eq $False }
+
+        $totalFiles = $allFiles.Length
+
+        Write-Output "Total files in the repository: $totalFiles"
 
         $counter = [pscustomobject]@{ Value = 0 }
+
         $groupSize = 50
+
         [array]$chunks = $allFiles | Group-Object -Property { [math]::Floor($counter.Value++ / $groupSize) }
+
         Write-Output "Split into $( $chunks.Count ) chunks."
 
         # https://stackoverflow.com/questions/6119956/how-to-determine-if-git-handles-a-file-as-binary-or-as-text#comment15281840_6134127
         $nullHash = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+
         $textFiles = $chunks | ForEach-Object {
             $chunk = $_.Group
             $filePaths = git -c core.quotepath=off diff --numstat $nullHash HEAD -- @chunk
@@ -90,13 +106,16 @@ function Test-Encoding
             }
 
             $fullPath = Resolve-Path -LiteralPath $file
+
             $bytes = [IO.File]::ReadAllBytes($fullPath) | Select-Object -First $bom.Length
+
             if (!$bytes)
             {
                 continue
             } # filter empty files
 
             $bytesEqualsBom = @(Compare-Object $bytes $bom -SyncWindow 0).Length -eq 0
+
             if ($bytesEqualsBom -and $Autofix)
             {
                 $fullContent = [IO.File]::ReadAllBytes($fullPath)
@@ -110,10 +129,16 @@ function Test-Encoding
             }
 
             $text = [IO.File]::ReadAllText($fullPath)
-            $hasWrongLineEndings = $text.Contains("`r`n")
+
+            $crlf = "`r`n"
+            $lf = "`n"
+            $cr = "`r"
+
+            $hasWrongLineEndings = $text.Contains($crlf) -or $text.Contains($cr)
+
             if ($hasWrongLineEndings -and $Autofix)
             {
-                $newText = $text -replace "`r`n", "`n"
+                $newText = $text -replace $crlf, $lf -replace $cr, $lf
                 [IO.File]::WriteAllText($fullPath, $newText)
                 Write-Output "Fixed the line endings for file $file"
             }
