@@ -25,7 +25,7 @@ jobs:
     runs-on: ${{ matrix.image }}
     steps:
       - name: Check out the sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install Pester
         shell: pwsh
         run: Install-Module Pester -RequiredVersion 5.7.1 -Force
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: Check out the repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: REUSE license check
       uses: fsfe/reuse-action@v5
 
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: Check out the repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Verify encoding
       shell: pwsh
