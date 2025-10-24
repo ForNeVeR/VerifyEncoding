@@ -44,7 +44,7 @@ jobs:
         run: Compress-Archive VerifyEncoding/* VerifyEncoding-${{ steps.version.outputs.version }}.zip
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           path: |-
             ./release-notes.md
